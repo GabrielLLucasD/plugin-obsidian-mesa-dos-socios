@@ -1,0 +1,8 @@
+node_modules/
+.obsidian/
+.trash/
+*.tsbuildinfo
+npm-debug.log*
+.env
+.env.*
+!.env.example

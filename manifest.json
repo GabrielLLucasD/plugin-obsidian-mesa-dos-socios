@@ -1,0 +1,9 @@
+{
+  "id": "obsidian-vtt",
+  "name": "VTT de laboratório",
+  "version": "0.1.0",
+  "minAppVersion": "1.14.4",
+  "description": "Primeiro passo de uma mesa virtual de RPG integrada às notas.",
+  "author": "Gabri",
+  "isDesktopOnly": true
+}
