@@ -1,33 +1,34 @@
 import { createServer } from "node:http";
 import type { Server } from "node:http";
-
-const pagina = `<!doctype html>
-<html lang="pt-BR">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Obsidian VTT — Laboratório</title>
-  </head>
-  <body>
-    <h1>Sua mesa está no ar!</h1>
-    <p>Esta página foi enviada pelo servidor do plugin Obsidian VTT.</p>
-    <p>Etapa 2: servidor HTTP local. Mapas e multiplayer vêm depois.</p>
-    <p>Para encerrar, execute “Parar servidor local” no Obsidian.</p>
-  </body>
-</html>`;
+import { attachWebSocket } from "./websocket-server";
+import page from "../client/page.html";
+import clientScript from "virtual:client-script";
 
 export class LocalServer {
   private server: Server;
   private url: string | undefined;
   private starting: Promise<string> | undefined;
   private stopping: Promise<void> | undefined;
+  private stopWebSocket: (() => Promise<void>) | undefined;
 
   constructor() {
     // Respondemos somente com conteúdo fixo: nenhum arquivo do vault é servido.
     this.server = createServer((request, response) => {
       response.setHeader("Cache-Control", "no-store");
       response.setHeader("X-Content-Type-Options", "nosniff");
-      response.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
+      const websocketSource =
+        this.url?.replace("http:", "ws:") ?? "'none'";
+
+      response.setHeader(
+        "Content-Security-Policy",
+        [
+          "default-src 'none'",
+          "script-src 'self'",
+          `connect-src ${websocketSource}`,
+          "base-uri 'none'",
+          "frame-ancestors 'none'",
+        ].join("; "),
+      );
 
       if (request.method !== "GET" && request.method !== "HEAD") {
         response.writeHead(405, { Allow: "GET, HEAD" });
@@ -35,14 +36,26 @@ export class LocalServer {
         return;
       }
 
-      if (request.url !== "/") {
-        response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-        response.end("Página não encontrada.");
+      if (request.url === "/") {
+        response.writeHead(200, {
+          "Content-Type": "text/html; charset=utf-8",
+        });
+        response.end(request.method === "HEAD" ? undefined : page);
         return;
       }
 
-      response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-      response.end(request.method === "HEAD" ? undefined : pagina);
+      if (request.url === "/client.js") {
+        response.writeHead(200, {
+          "Content-Type": "text/javascript; charset=utf-8",
+        });
+        response.end(request.method === "HEAD" ? undefined : clientScript);
+        return;
+      }
+
+      response.writeHead(404, {
+        "Content-Type": "text/plain; charset=utf-8",
+      });
+      response.end("Página não encontrada.");
     });
   }
 
@@ -72,6 +85,11 @@ export class LocalServer {
           return;
         }
         this.url = `http://127.0.0.1:${address.port}`;
+        this.stopWebSocket = attachWebSocket(
+          this.server,
+          this.url,
+        );
+
         resolve(this.url);
       };
 
@@ -115,13 +133,27 @@ export class LocalServer {
     }
     if (!this.server.listening) return;
 
-    await new Promise<void>((resolve, reject) => {
+    const stopWebSocket = this.stopWebSocket;
+    this.stopWebSocket = undefined;
+
+    const websocketClosed = stopWebSocket?.();
+
+    const httpClosed = new Promise<void>((resolve, reject) => {
       this.server.close((error) => {
-        this.url = undefined;
         if (error) reject(error);
         else resolve();
       });
+
       this.server.closeAllConnections();
     });
+
+    try {
+      await Promise.all([
+        websocketClosed,
+        httpClosed,
+      ]);
+    } finally {
+      this.url = undefined;
+    }
   }
 }

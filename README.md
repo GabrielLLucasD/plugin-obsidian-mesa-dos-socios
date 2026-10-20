@@ -12,6 +12,7 @@ O projeto propõe que o mestre hospede a sessão no próprio Obsidian, enquanto 
 - Integrar tokens e fichas às notas Markdown da campanha.
 - Permitir a participação de jogadores pelo Obsidian Desktop e pelo navegador.
 - Hospedar a sessão no computador do mestre, com suporte a LAN e VPN.
+- Exigir capacidade de jogadores definida pelo mestre e controlar entrada por convite e aprovação, com identidade, reconexão e revogação de acesso.
 - Compartilhar apenas recursos autorizados, preservando os arquivos privados do mestre.
 - Distribuir um plugin autossuficiente, sem exigir instalação de um servidor ou runtime adicional pelos jogadores e pelo mestre.
 - Manter uma arquitetura modular, extensível e independente de regras específicas de RPG.
@@ -19,6 +20,8 @@ O projeto propõe que o mestre hospede a sessão no próprio Obsidian, enquanto 
 ## Especificação
 
 A [proposta original](docs/proposta-original.md) reúne a visão do produto, requisitos, restrições, fluxos previstos e questões em aberto. Ela serve como referência para a evolução do projeto; tecnologias opcionais e funcionalidades futuras ainda estão sujeitas a definição.
+
+Os [requisitos de sessão e controle de entrada](docs/requisitos-sessao.md) registram as decisões posteriores sobre capacidade, convite, aprovação, identidade e reconexão, além dos critérios de aceitação e pendências técnicas. Esses recursos ainda não estão implementados.
 
 ## Estado atual
 
@@ -28,6 +31,7 @@ A [proposta original](docs/proposta-original.md) reúne a visão do produto, req
 - Encerramento do servidor ao desativar o plugin.
 - Tratamento de porta ocupada e de chamadas repetidas de início e parada.
 - Testes automatizados do servidor.
+- Contratos ping/pong, validação e interpretação de mensagens JSON, com testes do protocolo.
 
 O servidor aceita conexões apenas do próprio computador e entrega uma página fixa. Não há compartilhamento de arquivos do vault, autenticação de participantes ou conexão multiplayer nesta versão.
 
@@ -41,17 +45,21 @@ A implementação atual contém:
 src/
 ├── main.ts                       # Composição e ciclo de vida do plugin
 ├── commands/
-│   └── server-commands.ts        # Registro do comando de iniciar o servidor
-└── server/
-    └── local-server.ts          # Servidor HTTP e gerenciamento das conexões
+│   └── server-commands.ts        # Comandos de iniciar e parar o servidor
+├── server/
+│   └── local-server.ts          # Servidor HTTP e gerenciamento das conexões
+└── shared/
+    └── protocol.ts             # Contratos, validação e parser de mensagens
 tests/
-└── local-server.test.mjs         # Testes do servidor
+├── local-server.test.mjs         # Testes do servidor
+└── protocol.test.mjs             # Testes do protocolo
 docs/
-└── proposta-original.md         # Especificação inicial
+├── proposta-original.md         # Especificação inicial
+└── requisitos-sessao.md          # Capacidade, entrada e identidade
 sandbox-vault/                   # Vault de desenvolvimento
 ```
 
-A extração dos comandos está em andamento: o comando de parada ainda está em `main.ts`. Módulos de domínio e aplicação serão introduzidos à medida que os casos de uso da mesa forem implementados.
+Os comandos de iniciar e parar estão separados da composição e do ciclo de vida em `main.ts`. Módulos de domínio e aplicação serão introduzidos à medida que os casos de uso da mesa forem implementados.
 
 ## Desenvolvimento
 
@@ -94,9 +102,8 @@ No PowerShell, use `npm.cmd` no lugar de `npm` caso a política de execução bl
 
 ## Próximas etapas
 
-- Concluir a separação dos comandos e do ciclo de vida.
 - Validar comunicação via WebSocket entre Obsidian e navegador.
-- Implementar criação de sessões, identidades e permissões.
+- Implementar capacidade obrigatória, convite, aprovação, identidades e permissões de sessão.
 - Validar acesso por LAN/VPN e reconexão de participantes.
 - Construir mapas, grids, tokens sincronizados e rolagens de dados.
 - Integrar fichas e recursos autorizados do vault à sessão.

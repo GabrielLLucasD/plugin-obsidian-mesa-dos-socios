@@ -1,6 +1,6 @@
 import { build, context } from "esbuild";
 import { copyFile, mkdir } from "node:fs/promises";
-
+import { clientAssetsPlugin } from "./build/client-assets.mjs";
 // O resultado já fica no lugar onde o Obsidian procura plugins do vault de teste.
 const outputDirectory = "sandbox-vault/.obsidian/plugins/obsidian-vtt";
 await mkdir(outputDirectory, { recursive: true });
@@ -16,6 +16,10 @@ const options = {
   external: ["obsidian", "electron"],
   logLevel: "info",
   sourcemap: "inline",
+  loader: {
+  ".html": "text",
+  },
+  plugins: [clientAssetsPlugin()],
 };
 
 if (process.argv.includes("--watch")) {
