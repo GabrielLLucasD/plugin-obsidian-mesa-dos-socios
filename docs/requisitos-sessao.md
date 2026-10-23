@@ -1,6 +1,6 @@
 # Sessões, capacidade e controle de entrada
 
-Atualizado em 17/10/2026. Complementa a [proposta original](proposta-original.md), cuja versão inicial permanece como referência histórica. Em capacidade, entrada e identidade, as decisões deste documento substituem as questões em aberto correspondentes da proposta.
+Atualizado em 20/10/2026. Complementa a [proposta original](proposta-original.md), cuja versão inicial permanece como referência histórica. Em capacidade, entrada e identidade, as decisões deste documento substituem as questões em aberto correspondentes da proposta.
 
 ## Decisões aprovadas
 
@@ -62,7 +62,11 @@ Não há garantia de quantidade máxima de jogadores ou metas numéricas de dese
 
 ## Estado de implementação
 
-Requisitos aprovados não significam recursos implementados. Atualmente existem servidor HTTP local, ciclo de vida, contratos ping/pong, validadores e parser de mensagens. WebSocket, salas, admissão, credenciais e regras RF-09 a RF-18 ainda precisam de implementação e testes de aceitação.
+Atualmente existem HTTP/WebSocket local, cliente de ping/pong, ciclo de vida, contratos e validação de mensagens. A criação local de sessão implementa a capacidade obrigatória de RF-09, com validação no domínio, identidade UUID, consulta, proteção contra duplicação e estado em memória. Não exige participantes para criar a configuração da sessão; a contagem de participantes de RF-10 permanece pendente.
+
+Os testes automatizados cobrem capacidade, identidade, duplicação, imutabilidade da configuração, isolamento entre instâncias e recuperação após falha do gerador de identidade. O build verifica a integração com os tipos da API do Obsidian; o formulário ainda requer verificação manual no aplicativo (criar, cancelar, Enter, dados inválidos e fechamento ao desativar).
+
+A sessão local ainda não coordena o servidor. Hospedagem vinculada à sala, admissão, credenciais e regras RF-11 a RF-18 continuam pendentes. Reativar o plugin descarta a sessão em memória; isso não substitui o futuro fluxo explícito de encerramento e revogação.
 
 ## Referências técnicas
 

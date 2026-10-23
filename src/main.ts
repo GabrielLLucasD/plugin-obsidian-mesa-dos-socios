@@ -1,4 +1,7 @@
 import { Plugin } from "obsidian";
+import { randomUUID } from "node:crypto";
+import { SessionService } from "./application/session-service";
+import { registerSessionCommands } from "./commands/session-commands";
 import { registerServerCommands } from "./commands/server-commands";
 import { LocalServer } from "./server/local-server";
 
@@ -8,6 +11,9 @@ export default class VttPlugin extends Plugin {
 
   onload(): void {
     this.unloaded = false;
+
+    const sessions = new SessionService(randomUUID);
+    registerSessionCommands(this, sessions, () => !this.unloaded);
 
     registerServerCommands(
       this,
