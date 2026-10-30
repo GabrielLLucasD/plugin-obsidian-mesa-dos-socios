@@ -2,15 +2,20 @@ import { Modal, Setting } from "obsidian";
 import type { App } from "obsidian";
 
 export class CreateSessionModal extends Modal {
-  private readonly onCreate: (maxPlayers: number) => void;
+  private readonly onCreate: (maxPlayers: number) => Promise<void>;
   private cleanup: (() => void) | undefined;
+  private pending = false;
+  private closed = false;
+  private readonly onCancel: () => void;
 
-  constructor(app: App, onCreate: (maxPlayers: number) => void) {
+  constructor(app: App, onCreate: (maxPlayers: number) => Promise<void>, onCancel: () => void, private readonly onDismiss: () => void = () => {}) {
     super(app);
     this.onCreate = onCreate;
+    this.onCancel = onCancel;
   }
 
   onOpen(): void {
+    this.closed = false;
     this.contentEl.empty();
     this.titleEl.setText("Criar sessão");
 
@@ -36,6 +41,7 @@ export class CreateSessionModal extends Modal {
     const errorEl = form.createEl("p", {
       attr: { role: "alert", "aria-live": "assertive" },
     });
+    let createButton: HTMLButtonElement | undefined;
 
     new Setting(form)
       .addButton((button) => {
@@ -43,12 +49,14 @@ export class CreateSessionModal extends Modal {
         button.setButtonText("Cancelar").onClick(() => this.close());
       })
       .addButton((button) => {
+        createButton = button.buttonEl;
         button.buttonEl.type = "submit";
         button.setButtonText("Criar sessão").setCta();
       });
 
-    const submit = (event: SubmitEvent): void => {
+    const submit = async (event: SubmitEvent): Promise<void> => {
       event.preventDefault();
+      if (this.pending || this.closed) return;
       errorEl.setText("");
       input?.removeAttribute("aria-invalid");
 
@@ -58,14 +66,21 @@ export class CreateSessionModal extends Modal {
           throw new Error("Informe a quantidade máxima de jogadores.");
         }
 
-        this.onCreate(Number(value));
+        this.pending = true;
+        if (createButton) createButton.disabled = true;
+        await this.onCreate(Number(value));
+        this.pending = false;
         this.close();
       } catch (error: unknown) {
+        if (this.closed) return;
         errorEl.setText(
           error instanceof Error ? error.message : "Não foi possível criar a sessão.",
         );
         input?.setAttribute("aria-invalid", "true");
         input?.focus();
+      } finally {
+        this.pending = false;
+        if (createButton) createButton.disabled = false;
       }
     };
 
@@ -75,6 +90,9 @@ export class CreateSessionModal extends Modal {
   }
 
   onClose(): void {
+    this.closed = true;
+    this.onDismiss();
+    if (this.pending) this.onCancel();
     this.cleanup?.();
     this.cleanup = undefined;
     this.contentEl.empty();

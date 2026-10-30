@@ -10,7 +10,14 @@
   <body>
     <h1>Sua mesa está no ar!</h1>
 
-    <p id="connection-status" role="status">Conectando...</p>
+    <p id="connection-status" role="status">Verificando acesso...</p>
+    <form id="join-form" hidden>
+      <p><label>Seu nome <input id="display-name" name="displayName" maxlength="40" required autocomplete="nickname"></label></p>
+      <p><label>Convite da sala <input id="invite" name="invite" placeholder="ABCD-2345" spellcheck="false" autocapitalize="characters" maxlength="128" required autocomplete="off"></label></p>
+      <button id="request-entry" type="submit">Solicitar entrada</button>
+    </form>
+    <p id="entry-status" aria-live="polite"></p>
+    <button id="logout" type="button" hidden>Sair deste acesso</button>
 
     <button id="send-ping" type="button" disabled>
       Enviar ping

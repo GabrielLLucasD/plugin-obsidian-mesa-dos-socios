@@ -13,6 +13,10 @@ export class SessionService {
     return this.currentSession;
   }
 
+  clear(): void {
+    this.currentSession = undefined;
+  }
+
   create(maxPlayers: number): Session {
     if (this.currentSession) {
       throw new Error("Já existe uma sessão criada.");

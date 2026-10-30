@@ -18,6 +18,7 @@ const options = {
   sourcemap: "inline",
   loader: {
   ".html": "text",
+  ".css": "text",
   },
   plugins: [clientAssetsPlugin()],
 };

@@ -1,21 +1,24 @@
 import { Notice } from "obsidian";
 import type { Plugin } from "obsidian";
-import type { SessionService } from "../application/session-service";
+import type { HostingService } from "../application/hosting-service";
 import { CreateSessionModal } from "../ui/create-session-modal";
+import { ManageSessionModal } from "../ui/manage-session-modal";
 
 export function registerSessionCommands(
   plugin: Plugin,
-  sessions: SessionService,
+  sessions: HostingService,
   isActive: () => boolean,
-): void {
+) {
   let modal: CreateSessionModal | undefined;
+  let management: ManageSessionModal | undefined;
 
   plugin.register(() => {
     modal?.close();
+    management?.close();
     modal = undefined;
   });
 
-  plugin.addCommand({
+  const create = plugin.addCommand({
     id: "criar-sessao",
     name: "Criar sessão",
     callback: () => {
@@ -26,13 +29,51 @@ export function registerSessionCommands(
       }
 
       modal?.close();
-      modal = new CreateSessionModal(plugin.app, (maxPlayers) => {
+      modal = new CreateSessionModal(plugin.app, async (maxPlayers) => {
         if (!isActive()) throw new Error("O plugin foi desativado.");
 
-        const session = sessions.create(maxPlayers);
-        new Notice(`Sessão criada para até ${session.maxPlayers} jogadores.`);
-      });
+        const session = await sessions.create(maxPlayers);
+        if (isActive()) {
+          new Notice(`Sessão hospedada para até ${session.maxPlayers} jogadores.`);
+          management?.close();
+          management = new ManageSessionModal(plugin.app, sessions, () => { management = undefined; });
+          management.open();
+        }
+      }, () => {
+        void sessions.stop().catch((error: unknown) => {
+          if (isActive()) new Notice(error instanceof Error ? error.message : "Falha ao cancelar hospedagem.");
+        });
+      }, () => { modal = undefined; });
       modal.open();
+    },
+  });
+
+  const manage = plugin.addCommand({
+    id: "gerenciar-sessao", name: "Gerenciar sessão e entradas",
+    callback: () => {
+      if (!isActive()) return;
+      management?.close();
+      management = new ManageSessionModal(plugin.app, sessions, () => { management = undefined; });
+      management.open();
+    },
+  });
+
+  const end = plugin.addCommand({
+    id: "encerrar-sessao", name: "Encerrar sessão",
+    callback: async () => {
+      if (!isActive()) return;
+      try {
+        // Uma falha de apresentação não pode impedir a revogação e a parada.
+        try {
+          modal?.close();
+          management?.close();
+        } finally {
+          await sessions.stop();
+        }
+        if (isActive()) new Notice("Sessão encerrada. Todos os acessos foram revogados.");
+      } catch (error) {
+        if (isActive()) new Notice(error instanceof Error ? error.message : "Falha ao encerrar.");
+      }
     },
   });
 
@@ -54,4 +95,5 @@ export function registerSessionCommands(
       );
     },
   });
+  return { create, manage, end };
 }

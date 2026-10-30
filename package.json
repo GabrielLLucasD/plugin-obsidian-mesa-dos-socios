@@ -17,6 +17,7 @@
     "typescript": "5.9.3"
   },
   "dependencies": {
+    "fflate": "0.8.3",
     "ws": "8.22.0"
   }
 }

@@ -3,6 +3,8 @@ import type { Server } from "node:http";
 import { attachWebSocket } from "./websocket-server";
 import page from "../client/page.html";
 import clientScript from "virtual:client-script";
+import type { RoomAccess } from "../application/room-access";
+import { SessionHttp } from "./session-http";
 
 export class LocalServer {
   private server: Server;
@@ -11,11 +13,16 @@ export class LocalServer {
   private stopping: Promise<void> | undefined;
   private stopWebSocket: (() => Promise<void>) | undefined;
 
-  constructor() {
+  constructor(private readonly access: RoomAccess) {
+    const api = new SessionHttp(access);
     // Respondemos somente com conteúdo fixo: nenhum arquivo do vault é servido.
     this.server = createServer((request, response) => {
       response.setHeader("Cache-Control", "no-store");
       response.setHeader("X-Content-Type-Options", "nosniff");
+      response.setHeader("Referrer-Policy", "no-referrer");
+      if (!this.url || request.headers.host !== new URL(this.url).host) {
+        response.writeHead(403); response.end(); return;
+      }
       const websocketSource =
         this.url?.replace("http:", "ws:") ?? "'none'";
 
@@ -24,11 +31,16 @@ export class LocalServer {
         [
           "default-src 'none'",
           "script-src 'self'",
-          `connect-src ${websocketSource}`,
+          `connect-src 'self' ${websocketSource}`,
           "base-uri 'none'",
           "frame-ancestors 'none'",
         ].join("; "),
       );
+
+      if (request.url?.startsWith("/api/")) {
+        void api.handle(request, response, this.url);
+        return;
+      }
 
       if (request.method !== "GET" && request.method !== "HEAD") {
         response.writeHead(405, { Allow: "GET, HEAD" });
@@ -57,6 +69,9 @@ export class LocalServer {
       });
       response.end("Página não encontrada.");
     });
+    this.server.maxConnections = 128;
+    this.server.headersTimeout = 10_000;
+    this.server.requestTimeout = 15_000;
   }
 
   // Promise<string>: o endereço estará disponível quando a porta abrir.
@@ -88,6 +103,7 @@ export class LocalServer {
         this.stopWebSocket = attachWebSocket(
           this.server,
           this.url,
+          this.access,
         );
 
         resolve(this.url);
